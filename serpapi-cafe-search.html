@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cari Kafe Terdekat - SerpApi</title>
+  <style>
+    :root {
+      --bg: #f5f7f6;
+      --surface: #ffffff;
+      --ink: #18231f;
+      --muted: #68756f;
+      --line: #e2e9e5;
+      --accent: #246b50;
+      --accent-dark: #19513c;
+      --soft: #eaf3ee;
+      --danger: #a43d35;
+      --shadow: 0 12px 35px rgba(24, 45, 34, .07);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); }
+    .shell { width: min(980px, calc(100% - 32px)); margin: 36px auto 60px; }
+    header { margin-bottom: 22px; }
+    .eyebrow { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 8px 0; font-size: clamp(27px, 4vw, 38px); letter-spacing: -.04em; }
+    .intro { color: var(--muted); line-height: 1.6; max-width: 680px; margin: 0; }
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 22px; box-shadow: var(--shadow); margin-bottom: 18px; }
+    .panel h2 { margin: 0 0 15px; font-size: 17px; }
+    label { display: block; color: #394840; font-size: 13px; font-weight: 700; margin-bottom: 7px; }
+    input { width: 100%; min-width: 0; border: 1px solid #d7e0da; border-radius: 11px; padding: 12px 13px; font: inherit; outline: none; background: white; color: var(--ink); }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(36,107,80,.1); }
+    .key-row, .search-row { display: flex; gap: 10px; align-items: end; }
+    .field { flex: 1; min-width: 0; }
+    button { border: 0; border-radius: 11px; padding: 12px 16px; font: inherit; font-size: 14px; font-weight: 750; cursor: pointer; transition: .15s ease; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .primary { color: white; background: var(--accent); }
+    .primary:hover { background: var(--accent-dark); }
+    .secondary { color: var(--accent-dark); background: var(--soft); }
+    .secondary:hover { background: #dcece3; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 17px; }
+    .tab { background: #f0f4f1; color: #526159; }
+    .tab.active { color: white; background: var(--accent); }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 8px 0 0; }
+    .status { display: none; border-radius: 10px; padding: 11px 13px; margin-top: 14px; font-size: 13px; line-height: 1.5; }
+    .status.show { display: block; }
+    .status.info { background: #eef4f8; color: #34566c; }
+    .status.error { background: #fff0ee; color: var(--danger); }
+    .status.success { background: #edf7f0; color: #286044; }
+    .location-summary { display: none; margin-top: 16px; }
+    .location-summary.show { display: block; }
+    .location-name { font-weight: 800; margin-bottom: 4px; }
+    .location-address { color: var(--muted); font-size: 13px; }
+    .map-wrap { overflow: hidden; border-radius: 13px; border: 1px solid var(--line); margin-top: 12px; background: #edf2ef; }
+    .map-wrap iframe { display: block; width: 100%; height: 260px; border: 0; }
+    .suggestions { display: none; border: 1px solid var(--line); border-radius: 12px; margin-top: 9px; overflow: hidden; }
+    .suggestions.show { display: block; }
+    .suggestion { width: 100%; border-radius: 0; text-align: left; background: white; border-bottom: 1px solid var(--line); padding: 12px 13px; }
+    .suggestion:last-child { border-bottom: 0; }
+    .suggestion:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; background: #f2f7f4; }
+    .suggestion:hover { background: #f2f7f4; }
+    .suggestion strong { display: block; font-size: 13px; }
+    .suggestion span { display: block; color: var(--muted); font-size: 12px; font-weight: 400; margin-top: 3px; }
+    .result-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 14px; }
+    .result-head h2 { margin: 0; }
+    .count { color: var(--muted); font-size: 12px; }
+    .results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .place { border: 1px solid var(--line); border-radius: 14px; padding: 15px; background: white; }
+    .place h3 { font-size: 15px; margin: 0 0 7px; line-height: 1.35; }
+    .meta { font-size: 12px; color: #526159; line-height: 1.55; }
+    .address { color: var(--muted); margin-top: 7px; }
+    .place a { display: inline-block; color: var(--accent); font-size: 12px; font-weight: 800; margin-top: 12px; text-decoration: none; }
+    .place a:hover { text-decoration: underline; }
+    details { margin-top: 18px; }
+    summary { color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow: auto; padding: 14px; border-radius: 12px; background: #17231e; color: #d9e9df; font-size: 11px; line-height: 1.5; }
+    .footnote { color: var(--muted); font-size: 11px; line-height: 1.6; margin: 15px 2px 0; }
+    @media (max-width: 640px) {
+      .shell { width: min(100% - 22px, 980px); margin-top: 23px; }
+      .panel { padding: 16px; border-radius: 15px; }
+      .key-row, .search-row { align-items: stretch; flex-direction: column; }
+      .key-row button, .search-row button { width: 100%; }
+      .results { grid-template-columns: 1fr; }
+      .map-wrap iframe { height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="eyebrow">SerpApi · Google Maps Search</div>
+      <h1>Cari kafe & restoran</h1>
+      <p class="intro">Cari tempat berdasarkan lokasi GPS atau lokasi yang kamu ketik. Setelah lokasi berhasil dipilih, preview peta akan muncul dan hasil tempat bisa dicari di sekitarnya.</p>
+    </header>
+
+    <section class="panel">
+      <h2>1. Konfigurasi API</h2>
+      <div class="key-row">
+        <div class="field">
+          <label for="apiKey">SerpApi API Key</label>
+          <input id="apiKey" type="password" placeholder="Masukkan API key SerpApi" autocomplete="off" />
+        </div>
+        <button class="secondary" id="saveKeyBtn">Simpan key</button>
+      </div>
+      <p class="hint">Key disimpan di localStorage browser ini. Untuk prototype lokal boleh, tetapi jangan gunakan cara ini untuk aplikasi produksi karena key dapat dilihat dari browser.</p>
+      <div id="keyStatus" class="status"></div>
+    </section>
+
+    <section class="panel">
+      <h2>2. Tentukan lokasi pencarian</h2>
+      <div class="tabs">
+        <button class="tab active" id="gpsTab" type="button">GPS Saya</button>
+        <button class="tab" id="manualTab" type="button">Cari Lokasi</button>
+      </div>
+
+      <div id="gpsPanel">
+        <p class="hint" style="margin:0 0 12px">Gunakan lokasi perangkat saat ini. Browser akan meminta izin akses lokasi.</p>
+        <button class="primary" id="gpsBtn" type="button">Ambil lokasi saya</button>
+      </div>
+
+      <div id="manualPanel" hidden>
+        <label for="locationInput">Ketik nama tempat, kota, jalan, atau alamat</label>
+        <div class="search-row">
+          <div class="field">
+            <input id="locationInput" type="text" placeholder="Contoh: Stasiun Bogor, Bogor" autocomplete="off" />
+          </div>
+          <button class="primary" id="resolveBtn" type="button">Cari lokasi</button>
+        </div>
+        <p class="hint">Tekan Enter atau klik Cari lokasi. Pilih salah satu hasil yang sesuai jika muncul beberapa pilihan.</p>
+        <div id="suggestions" class="suggestions"></div>
+      </div>
+
+      <div id="locationStatus" class="status"></div>
+      <div id="locationSummary" class="location-summary">
+        <div class="location-name" id="selectedName"></div>
+        <div class="location-address" id="selectedAddress"></div>
+        <div class="map-wrap">
+          <iframe id="mapFrame" title="Preview peta lokasi" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+        </div>
+        <p class="hint">Preview peta bersifat tampilan saja, bukan peta interaktif.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>3. Cari kafe atau restoran</h2>
+      <div class="search-row">
+        <div class="field">
+          <label for="keywordInput">Kata kunci</label>
+          <input id="keywordInput" type="text" value="cafe" placeholder="Contoh: cafe, restoran, bakery" />
+        </div>
+        <button class="primary" id="searchBtn" type="button">Cari tempat</button>
+      </div>
+      <p class="hint">Tentukan lokasi terlebih dahulu agar pencarian memakai koordinat yang sesuai.</p>
+      <div id="searchStatus" class="status"></div>
+    </section>
+
+    <section class="panel">
+      <div class="result-head">
+        <h2>Hasil pencarian</h2>
+        <span class="count" id="resultCount">Belum ada hasil</span>
+      </div>
+      <div id="results" class="results"></div>
+      <details>
+        <summary>Lihat response JSON</summary>
+        <pre id="rawJson">Belum ada response.</pre>
+      </details>
+      <p class="footnote">Catatan: SerpApi menyampaikan hasil Google Maps, tetapi parameter koordinat tidak menjamin seluruh hasil pasti berada di dalam radius tertentu. Periksa alamat dan posisi hasil sebelum menganggapnya benar-benar dekat.</p>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    // Titik tengah Indonesia/Jakarta hanya dipakai sebagai titik asal autocomplete
+    // ketika pengguna belum memilih GPS. Ini bukan klaim lokasi pengguna.
+    const AUTOCOMPLETE_FALLBACK = { lat: -6.2, lng: 106.816666, label: "Titik referensi autocomplete" };
+
+    let selectedLocation = null;
+    let currentMode = "gps";
+    let latestSuggestions = [];
+
+    function getApiKey() {
+      return $("apiKey").value.trim();
+    }
+
+    function showStatus(id, message, type = "info") {
+      const el = $(id);
+      el.textContent = message;
+      el.className = `status show ${type}`;
+    }
+
+    function clearStatus(id) {
+      const el = $(id);
+      el.textContent = "";
+      el.className = "status";
+    }
+
+    function requireApiKey() {
+      if (!getApiKey()) {
+        showStatus("keyStatus", "Masukkan SerpApi API Key terlebih dahulu.", "error");
+        $("apiKey").focus();
+        return false;
+      }
+      clearStatus("keyStatus");
+      return true;
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      $("gpsPanel").hidden = mode !== "gps";
+      $("manualPanel").hidden = mode !== "manual";
+      $("gpsTab").classList.toggle("active", mode === "gps");
+      $("manualTab").classList.toggle("active", mode === "manual");
+    }
+
+    function showSelectedLocation(location) {
+      selectedLocation = location;
+      $("selectedName").textContent = location.name || "Lokasi terpilih";
+      $("selectedAddress").textContent = location.address || `${location.lat}, ${location.lng}`;
+      $("locationSummary").classList.add("show");
+
+      const mapUrl = new URL("https://www.google.com/maps");
+      mapUrl.searchParams.set("q", `${location.lat},${location.lng}`);
+      mapUrl.searchParams.set("z", "15");
+      mapUrl.searchParams.set("output", "embed");
+      $("mapFrame").src = mapUrl.toString();
+
+      showStatus("locationStatus", "Lokasi berhasil ditentukan. Preview peta sudah ditampilkan.", "success");
+    }
+
+    async function fetchSerpApi(params) {
+      const url = new URL("https://serpapi.com/search.json");
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          url.searchParams.set(key, String(value));
+        }
+      });
+      url.searchParams.set("api_key", getApiKey());
+
+      const response = await fetch(url.toString());
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    async function getGpsLocation() {
+      if (!requireApiKey()) return;
+      if (!navigator.geolocation) {
+        showStatus("locationStatus", "Browser ini tidak mendukung geolocation.", "error");
+        return;
+      }
+
+      $("gpsBtn").disabled = true;
+      $("gpsBtn").textContent = "Mengambil lokasi...";
+      clearStatus("locationStatus");
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          showSelectedLocation({
+            lat,
+            lng,
+            name: "Lokasi GPS saya",
+            address: `Koordinat: ${lat.toFixed(6)}, ${lng.toFixed(6)}`
+          });
+          $("gpsBtn").disabled = false;
+          $("gpsBtn").textContent = "Ambil lokasi saya";
+        },
+        (error) => {
+          let message = "Lokasi tidak dapat diambil.";
+          if (error.code === 1) message = "Izin lokasi ditolak. Izinkan akses lokasi dari browser, lalu coba lagi.";
+          if (error.code === 2) message = "Posisi perangkat tidak tersedia. Periksa GPS atau koneksi perangkat.";
+          if (error.code === 3) message = "Waktu pengambilan lokasi habis. Coba lagi.";
+          showStatus("locationStatus", message, "error");
+          $("gpsBtn").disabled = false;
+          $("gpsBtn").textContent = "Ambil lokasi saya";
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+      );
+    }
+
+    function renderSuggestions(suggestions) {
+      const container = $("suggestions");
+      container.innerHTML = "";
+      latestSuggestions = (suggestions || []).filter(item =>
+        item && typeof item.value === "string"
+      );
+
+      if (!latestSuggestions.length) {
+        container.classList.remove("show");
+        return;
+      }
+
+      latestSuggestions.slice(0, 8).forEach((item) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "suggestion";
+
+        const title = document.createElement("strong");
+        title.textContent = item.value;
+
+        const subtitle = document.createElement("span");
+        const isPlace = item.type === "place";
+        subtitle.textContent = isPlace
+          ? (item.subtext || "Tempat · pilih untuk melihat peta")
+          : "Saran pencarian · pilih untuk mencari lokasi";
+
+        button.append(title, subtitle);
+        button.addEventListener("click", () => {
+          container.classList.remove("show");
+
+          if (
+            isPlace &&
+            Number.isFinite(Number(item.latitude)) &&
+            Number.isFinite(Number(item.longitude))
+          ) {
+            chooseSuggestion(item);
+          } else {
+            // Saran keyword belum tentu memiliki koordinat.
+            // Cari lagi teks yang dipilih agar SerpApi mengembalikan kandidat place.
+            $("locationInput").value = item.value;
+            resolveTypedLocation();
+          }
+        });
+
+        container.appendChild(button);
+      });
+
+      container.classList.add("show");
+    }
+    function chooseSuggestion(item) {
+      const lat = Number(item.latitude);
+      const lng = Number(item.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        showStatus("locationStatus", "Hasil ini tidak memiliki koordinat yang bisa digunakan.", "error");
+        return;
+      }
+
+      showSelectedLocation({
+        lat,
+        lng,
+        name: item.value || "Lokasi terpilih",
+        address: item.subtext || ""
+      });
+    }
+
+    let autocompleteTimer = null;
+    let autocompleteRequestId = 0;
+
+    async function resolveTypedLocation() {
+      if (!requireApiKey()) return;
+      const query = $("locationInput").value.trim();
+      if (query.length < 2) {
+        $("suggestions").classList.remove("show");
+        clearStatus("locationStatus");
+        return;
+      }
+
+      const requestId = ++autocompleteRequestId;
+      const origin = selectedLocation || AUTOCOMPLETE_FALLBACK;
+
+      $("suggestions").classList.remove("show");
+      showStatus("locationStatus", "Mencari saran lokasi...", "info");
+
+      try {
+        const data = await fetchSerpApi({
+          engine: "google_maps_autocomplete",
+          q: query,
+          ll: `@${origin.lat},${origin.lng},10z`,
+          gl: "id",
+          hl: "id"
+        });
+
+        // Abaikan response lama jika pengguna sudah mengetik query baru.
+        if (requestId !== autocompleteRequestId) return;
+
+        $("rawJson").textContent = JSON.stringify(data, null, 2);
+        const suggestions = data.suggestions || [];
+        renderSuggestions(suggestions);
+
+        if (suggestions.length) {
+          showStatus(
+            "locationStatus",
+            "Pilih salah satu saran di bawah input. Preview peta muncul setelah tempat dengan koordinat dipilih.",
+            "success"
+          );
+        } else {
+          showStatus("locationStatus", "Belum ada saran. Coba kata kunci yang lebih lengkap.", "info");
+        }
+      } catch (error) {
+        if (requestId !== autocompleteRequestId) return;
+        showStatus("locationStatus", `Gagal mencari lokasi: ${error.message}`, "error");
+      }
+    }
+    async function searchPlaces() {
+      if (!requireApiKey()) return;
+      if (!selectedLocation) {
+        showStatus("searchStatus", "Tentukan lokasi melalui GPS Saya atau Cari Lokasi terlebih dahulu.", "error");
+        return;
+      }
+
+      const keyword = $("keywordInput").value.trim();
+      if (!keyword) {
+        showStatus("searchStatus", "Masukkan kata kunci pencarian.", "error");
+        return;
+      }
+
+      $("searchBtn").disabled = true;
+      $("searchBtn").textContent = "Mencari...";
+      showStatus("searchStatus", "Mengambil hasil dari SerpApi...", "info");
+      $("results").innerHTML = "";
+      $("resultCount").textContent = "Memuat...";
+
+      try {
+        const data = await fetchSerpApi({
+          engine: "google_maps",
+          type: "search",
+          q: keyword,
+          ll: `@${selectedLocation.lat},${selectedLocation.lng},14z`,
+          nearby: selectedLocation.name || selectedLocation.address || "",
+          google_domain: "google.com",
+          gl: "id",
+          hl: "id"
+        });
+
+        $("rawJson").textContent = JSON.stringify(data, null, 2);
+        const places = data.local_results || [];
+        $("resultCount").textContent = `${places.length} hasil`;
+        renderPlaces(places);
+
+        if (places.length) {
+          showStatus("searchStatus", `Pencarian selesai. ${places.length} hasil diterima dari SerpApi.`, "success");
+        } else {
+          showStatus("searchStatus", "Pencarian selesai, tetapi tidak ada hasil. Coba kata kunci atau lokasi lain.", "info");
+        }
+      } catch (error) {
+        $("resultCount").textContent = "Gagal";
+        showStatus("searchStatus", `Gagal mengambil hasil: ${error.message}`, "error");
+        $("rawJson").textContent = error.message;
+      } finally {
+        $("searchBtn").disabled = false;
+        $("searchBtn").textContent = "Cari tempat";
+      }
+    }
+
+    function renderPlaces(places) {
+      const container = $("results");
+      container.innerHTML = "";
+
+      places.forEach((place) => {
+        const card = document.createElement("article");
+        card.className = "place";
+
+        const title = document.createElement("h3");
+        title.textContent = place.title || place.name || "Tempat tanpa nama";
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const details = [];
+        if (place.rating) details.push(`★ ${place.rating}`);
+        if (place.reviews) details.push(`${place.reviews} ulasan`);
+        if (place.type) details.push(place.type);
+        if (place.price) details.push(place.price);
+        meta.textContent = details.join(" · ") || "Informasi tambahan tidak tersedia";
+
+        const address = document.createElement("div");
+        address.className = "meta address";
+        address.textContent = place.address || "Alamat tidak tersedia";
+
+        card.append(title, meta, address);
+
+        const mapLink = place.link || place.website;
+        if (mapLink) {
+          const link = document.createElement("a");
+          link.href = mapLink;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = place.link ? "Buka di Google Maps ↗" : "Buka situs ↗";
+          card.appendChild(link);
+        } else if (place.gps_coordinates && place.gps_coordinates.latitude != null && place.gps_coordinates.longitude != null) {
+          const link = document.createElement("a");
+          link.href = `https://www.google.com/maps?q=${place.gps_coordinates.latitude},${place.gps_coordinates.longitude}`;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = "Buka di Google Maps ↗";
+          card.appendChild(link);
+        }
+
+        container.appendChild(card);
+      });
+    }
+
+    $("saveKeyBtn").addEventListener("click", () => {
+      const key = getApiKey();
+      if (!key) {
+        showStatus("keyStatus", "API key masih kosong.", "error");
+        return;
+      }
+      localStorage.setItem("serpapi_api_key", key);
+      showStatus("keyStatus", "API key disimpan di browser ini.", "success");
+    });
+
+    $("gpsTab").addEventListener("click", () => setMode("gps"));
+    $("manualTab").addEventListener("click", () => setMode("manual"));
+    $("gpsBtn").addEventListener("click", getGpsLocation);
+    $("resolveBtn").addEventListener("click", resolveTypedLocation);
+    $("searchBtn").addEventListener("click", searchPlaces);
+
+    $("locationInput").addEventListener("input", () => {
+      clearTimeout(autocompleteTimer);
+      const query = $("locationInput").value.trim();
+
+      if (query.length < 2) {
+        autocompleteRequestId++;
+        $("suggestions").classList.remove("show");
+        clearStatus("locationStatus");
+        return;
+      }
+
+      autocompleteTimer = setTimeout(() => {
+        resolveTypedLocation();
+      }, 350);
+    });
+
+    $("locationInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        clearTimeout(autocompleteTimer);
+        resolveTypedLocation();
+      }
+
+      if (event.key === "Escape") {
+        $("suggestions").classList.remove("show");
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest("#manualPanel")) {
+        $("suggestions").classList.remove("show");
+      }
+    });
+
+    $("keywordInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        searchPlaces();
+      }
+    });
+
+    const savedKey = localStorage.getItem("serpapi_api_key");
+    if (savedKey) $("apiKey").value = savedKey;
+  </script>
+</body>
+</html>
